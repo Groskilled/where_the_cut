@@ -1,8 +1,6 @@
 import cv2
 import sys
 import numpy as np
-from PIL import Image
-from scipy import misc
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import math
@@ -14,9 +12,9 @@ def display_img(img):
 def inverte(img):
     return (255-img)
 
-def SAD(img1, img2):
-    ret = img1 - img2
-    return np.sum(np.absolute(img2 - img1))
+def print_cuts(cuts):
+    for i in cuts:
+        print "I found a cut between frame {0} and frame {1}.".format(i[0], i[1])
 
 def HD(img1, img2):
     bhist1 = cv2.calcHist([img1],[0],None,[256],[0,256])
@@ -63,20 +61,25 @@ vidcap = cv2.VideoCapture(sys.argv[1])
 success = True 
 count = 0;
 imgs = []
+cuts = []
 while success:
     success,image = vidcap.read()
     if success == False:
         break
-    #grey = RGB_to_gray(image)
     if exist == False:
         cv2.imwrite("frame%d.jpg" % count, image)
     imgs.append("frame%d.jpg" %count)
     count += 1
-
 for i in xrange(count - 1):
     img1 = mpimg.imread(imgs[i])
     edges1 = cv2.Canny(RGB_to_gray(img1),50,150)
     img2 = mpimg.imread(imgs[i+1])
     edges2 = cv2.Canny(RGB_to_gray(img2),50,150)
     if ECR(edges1, edges2) > 0.003:
-        print "Cut between frame {0} and frame {1}".format(i, i+1)
+        if len(cuts) == 0:
+            cuts.append([i, i+1])
+        elif cuts[-1][1] < i - 3:
+            cuts.append([i, i+1])
+        else:
+            cuts[-1][1] = i + 1
+print_cuts(cuts)
