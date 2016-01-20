@@ -36,6 +36,7 @@ def check_cuts(cuts, img):
     ret = []
     for i in cuts:
         if (i[1] - i[0]) > 5:
+            start = i[0]
             for j in range(i[0], i[1]):
                 img1 = mpimg.imread("frame%d.jpg" %j)
                 img2 = mpimg.imread("frame%d.jpg" %(j + 1))
@@ -89,12 +90,13 @@ while success:
         cv2.imwrite("frame%d.jpg" % count, image)
     imgs.append("frame%d.jpg" %count)
     count += 1
+#height, width = image.shape[:2]
 for i in xrange(count - 1):
     img1 = mpimg.imread(imgs[i])
     edges1 = cv2.Canny(RGB_to_gray(img1),50,150)
     img2 = mpimg.imread(imgs[i+1])
     edges2 = cv2.Canny(RGB_to_gray(img2),50,150)
-    if ECR(edges1, edges2) > 0.003:
+    if ECR(edges1, edges2) > 0.003 and HD(img1, img2) < 0.90:
         if len(cuts) == 0:
             cuts.append([i, i+1])
         elif cuts[-1][1] < i - 3:
