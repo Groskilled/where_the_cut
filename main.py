@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import math
+import os
 
 def display_img(img):
     imgplot = plt.imshow(img)
@@ -12,21 +13,39 @@ def display_img(img):
 def inverte(img):
     return (255-img)
 
-def print_cuts(cuts):
+def print_cuts(cuts, imgs):
     for i in cuts:
         print "I found a cut between frame {0} and frame {1}.".format(i[0], i[1])
+        fig = plt.figure()
+        a = fig.add_subplot(1,2,2)
+        plt.subplot(121)
+        imgplot = plt.imshow(mpimg.imread(imgs[i[0]]))
+        plt.subplot(122)
+        imgplot = plt.imshow(mpimg.imread(imgs[i[1]]))
+        plt.show()
+
 
 def HD(img1, img2):
-    bhist1 = cv2.calcHist([img1],[0],None,[256],[0,256])
-    bhist2 = cv2.calcHist([img2],[0],None,[256],[0,256])
-    ghist1 = cv2.calcHist([img1],[1],None,[256],[0,256])
-    ghist2 = cv2.calcHist([img1],[1],None,[256],[0,256])
-    rhist1 = cv2.calcHist([img2],[2],None,[256],[0,256])
-    rhist2 = cv2.calcHist([img2],[2],None,[256],[0,256])
-    tmp1 = np.power(bhist2 - bhist1, 2)
-    tmp2 = np.power(ghist2 - ghist1, 2)
-    tmp3 = np.power(rhist2 - rhist1, 2)
-    ret = math.sqrt(np.sum(tmp1 + tmp2 + tmp3))
+    hist1 = cv2.calcHist([img1], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+    hist2 = cv2.calcHist([img2], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+    hist1 = cv2.normalize(hist1).flatten()
+    hist2 = cv2.normalize(hist2).flatten()
+    return cv2.compareHist(hist1, hist2, cv2.cv.CV_COMP_CORREL)
+
+def check_cuts(cuts, img):
+    ret = []
+    for i in cuts:
+        if (i[1] - i[0]) > 5:
+            for j in range(i[0], i[1]):
+                img1 = mpimg.imread("frame%d.jpg" %j)
+                img2 = mpimg.imread("frame%d.jpg" %(j + 1))
+                if HD(img1, img2) > 0.92:
+                    start = j
+                else:
+                    i[0] = start
+                    ret.append(i)
+        else:
+            ret.append(i)
     return ret
 
 def ECR(img1, img2):
@@ -82,4 +101,5 @@ for i in xrange(count - 1):
             cuts.append([i, i+1])
         else:
             cuts[-1][1] = i + 1
-print_cuts(cuts)
+cuts = check_cuts(cuts, imgs)
+print_cuts(cuts, imgs)
