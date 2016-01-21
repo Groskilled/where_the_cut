@@ -24,13 +24,17 @@ def print_cuts(cuts, imgs):
         imgplot = plt.imshow(mpimg.imread(imgs[i[1]]))
         plt.show()
 
-
-def HD(img1, img2):
+def HD_1(img1, img2):
     hist1 = cv2.calcHist([img1], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
     hist2 = cv2.calcHist([img2], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
     hist1 = cv2.normalize(hist1).flatten()
-    hist2 = cv2.normalize(hist2).flatten()
+    hist2 = cv2.normalize(hist1).flatten()
     return cv2.compareHist(hist1, hist2, cv2.cv.CV_COMP_CORREL)
+
+def HD(imgs):
+    hist = [cv2.calcHist([img], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256]) for img in imgs]
+    hist = [cv2.normalize(hist1).flatten() for hist1 in hist]
+    return cv2.compareHist(hist[0], hist[-1], cv2.cv.CV_COMP_CORREL)
 
 def check_cuts(cuts, img):
     ret = []
@@ -40,7 +44,7 @@ def check_cuts(cuts, img):
             for j in range(i[0], i[1]):
                 img1 = mpimg.imread("frame%d.jpg" %j)
                 img2 = mpimg.imread("frame%d.jpg" %(j + 1))
-                if HD(img1, img2) > 0.92:
+                if HD_1(img1, img2) > 0.92:
                     start = j
                 else:
                     i[0] = start
@@ -49,23 +53,19 @@ def check_cuts(cuts, img):
             ret.append(i)
     return ret
 
-def ECR(img1, img2):
+def ECR(img):
     kernel = np.ones((6,6),'uint8')
-    ep_img1 = np.sum(img1) #edge pixels in img1
-    ep_img2 = np.sum(img2) #edge pixels in img2
-    if ep_img1 == 0:
-        ep_img1 = 1
-    if ep_img2 == 0:
-        ep_img2 = 1
-    dil_img1 = cv2.dilate(img1,kernel)
-    dil_img2 = cv2.dilate(img2,kernel)
-    inv_img1 = inverte(dil_img1) #img1 inverted
-    inv_img2 = inverte(dil_img2) #img2 inverted
-    pout = np.logical_and(img1, inv_img2)
-    pin = np.logical_and(img2, inv_img1)
+    ep_img = [np.sum(im) for im in img]
+    for i in xrange(len(ep_img)):
+        if ep_img[i] == 0:
+            ep_img[i] = 1
+    dil_img = [cv2.dilate(im, kernel) for im in img]
+    inv_img = [inverte(im) for im in dil_img]
+    pout = np.logical_and(img[0], inv_img[-1])
+    pin = np.logical_and(img[-1], inv_img[0])
     pout_cnt = np.sum(pout)
     pin_cnt = np.sum(pin)
-    return max(pout_cnt / ep_img1, pin_cnt / ep_img2)
+    return max(pout_cnt / ep_img[0], pin_cnt / ep_img[-1])
 
 def RGB_to_gray(img):
     return ((img[:,:,0]+img[:,:,1]+img[:,:,2])/3)
@@ -90,13 +90,10 @@ while success:
         cv2.imwrite("frame%d.jpg" % count, image)
     imgs.append("frame%d.jpg" %count)
     count += 1
-#height, width = image.shape[:2]
 for i in xrange(count - 1):
-    img1 = mpimg.imread(imgs[i])
-    edges1 = cv2.Canny(RGB_to_gray(img1),50,150)
-    img2 = mpimg.imread(imgs[i+1])
-    edges2 = cv2.Canny(RGB_to_gray(img2),50,150)
-    if ECR(edges1, edges2) > 0.003 and HD(img1, img2) < 0.90:
+    img = [mpimg.imread(imgs[j]) for j in range(i, i+2)]
+    edges = [cv2.Canny(cv2.cvtColor(k, cv2.COLOR_BGR2GRAY),50,150) for k in img]
+    if ECR(edges) > 0.003 and HD(img) < 0.90:
         if len(cuts) == 0:
             cuts.append([i, i+1])
         elif cuts[-1][1] < i - 3:
